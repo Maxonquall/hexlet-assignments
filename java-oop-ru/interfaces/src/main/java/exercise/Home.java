@@ -1,6 +1,6 @@
 package exercise;
 
-public interface Home /*extends Comparable<Home>*/ {
+public interface Home  {
     double getArea();
     int compareTo(Home another);
 }
