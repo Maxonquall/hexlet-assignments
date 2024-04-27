@@ -1,6 +1,5 @@
 package exercise.controller;
 
-import io.javalin.validation.ValidationException;
 import org.apache.commons.lang3.StringUtils;
 import exercise.util.Security;
 import exercise.model.User;
@@ -12,59 +11,40 @@ import io.javalin.http.NotFoundResponse;
 import io.javalin.http.Context;
 
 import java.util.Collections;
-import java.util.Objects;
 
 
 public class UsersController {
-    private static final String TOKEN_NAME = "token";
+
     public static void build(Context ctx) throws Exception {
         ctx.render("users/build.jte");
     }
 
     // BEGIN
-    public static void create(Context ctx) {
-        var firstName = ctx.formParamAsClass("firstName", String.class)
-                .check(Objects::nonNull, "")
-                .get();
-        var lastName = ctx.formParamAsClass("lastName", String.class)
-                .check(Objects::nonNull, "")
-                .get();
-        var email = ctx.formParamAsClass("email", String.class)
-                .check(item -> UserRepository.getEntities()
-                        .stream()
-                        .filter(user -> StringUtils.equalsIgnoreCase(user.getEmail(), item))
-                        .findAny()
-                        .isEmpty(), "Пользователь уже есть.")
-                .get();
-        var password = ctx.formParamAsClass("password", String.class)
-                .check(Objects::nonNull, "")
-                .getOrThrow(ValidationException::new);
-
+    public static void create (Context ctx) {
+        var firstName = ctx.formParam("firstName");
+        var lastName = ctx.formParam("lastName");
+        var email = ctx.formParam("email");
+        var password = ctx.formParam("password");
         var token = Security.generateToken();
-        var encryptedPassword = Security.encrypt(password);
 
-        var user = new User(firstName, lastName, email, encryptedPassword, token);
-
+        var user = new User(firstName, lastName, email, password, token);
         UserRepository.save(user);
 
-        ctx.cookie(TOKEN_NAME, token);
-
-        ctx.redirect(NamedRoutes.userPath(user.getId()));
+        ctx.redirect(NamedRoutes.userPath(String.valueOf(user.getId())));
+        ctx.cookie("token", token);
     }
 
-    public static void show(Context ctx) {
-        var token = ctx.cookie(TOKEN_NAME);
-        var id = ctx.pathParamAsClass("id", Long.class)
-                .check(item -> UserRepository.find(item).isPresent(), "Not found.")
-                .getOrThrow(stringMap -> new NotFoundResponse());
+    public static void show (Context ctx) {
+        var id = ctx.pathParamAsClass("id", Long.class).get();
+        var user = UserRepository.find(id).get();
+        var savedToken = user.getToken();
+        var receivedToken = ctx.cookie("token");
 
-        var user = UserRepository.find(id).filter(u -> u.getToken().equals(token));
-
-        if (user.isEmpty()) {
-            throw new NotFoundResponse();
+        if (receivedToken != null && savedToken.equals(receivedToken)) {
+            ctx.render("users/show.jte", Collections.singletonMap("user", user));
+        } else {
+            ctx.redirect(NamedRoutes.buildUserPath());
         }
-
-        ctx.render("users/show.jte", Collections.singletonMap("user", user.get()));
     }
     // END
 }
