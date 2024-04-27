@@ -17,26 +17,34 @@ public class UsersController {
     }
 
     // BEGIN
-    public static void create(Context ctx) {
+    public static void register(Context ctx) throws Exception {
         String firstName = ctx.formParam("firstName");
         String lastName = ctx.formParam("lastName");
         String email = ctx.formParam("email");
-        String password = ctx.formParam("password");
-        String encryptPassword = Security.encrypt(password);
+        String password = Security.encrypt(ctx.formParam("password"));
+
         String token = Security.generateToken();
-        User user = new User(firstName, lastName, email, encryptPassword, token);
-        UserRepository.save(user);
         ctx.cookie("token", token);
-        ctx.redirect("/users/" + String.valueOf(user.getId()));
+
+        User newUser = new User(firstName, lastName, email, password, token);
+        UserRepository.save(newUser);
+        User createdUser = UserRepository.getEntities().stream()
+                .filter(user -> user.getToken().equals(token))
+                .findAny()
+                .orElse(null);
+        String id = String.valueOf(createdUser.getId());
+        ctx.redirect(NamedRoutes.userPath(id));
     }
 
-    public static void show(Context ctx) {
-        Long id = ctx.pathParamAsClass("id", Long.class).get();
-        User user = UserRepository.find(id)
-                .orElseThrow(() -> new NotFoundResponse("User not found"));
+    public static void show(Context ctx) throws Exception {
+        Long id = Long.parseLong(ctx.pathParam("id"));
         String token = ctx.cookie("token");
-        if (user.getToken().equals(token)) {
-            ctx.render("users/show.jte", Collections.singletonMap("user", user));
+        User existingUser = UserRepository.getEntities().stream()
+                .filter(user -> user.getToken().equals(token))
+                .findAny()
+                .orElse(null);
+        if (id.equals(existingUser.getId())) {
+            ctx.render("users/show.jte", Collections.singletonMap("user", existingUser));
         } else {
             ctx.redirect(NamedRoutes.buildUserPath());
         }
