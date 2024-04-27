@@ -20,27 +20,25 @@ public class UsersController {
     }
 
     // BEGIN
-    public static void create (Context ctx) {
-        var firstName = ctx.formParam("firstName");
-        var lastName = ctx.formParam("lastName");
-        var email = ctx.formParam("email");
-        var password = ctx.formParam("password");
-        var token = Security.generateToken();
-
-        var user = new User(firstName, lastName, email, password, token);
+    public static void create(Context ctx) {
+        String firstName = ctx.formParam("firstName");
+        String lastName = ctx.formParam("lastName");
+        String email = ctx.formParam("email");
+        String password = ctx.formParam("password");
+        String encryptPassword = Security.encrypt(password);
+        String token = Security.generateToken();
+        User user = new User(firstName, lastName, email, encryptPassword, token);
         UserRepository.save(user);
-
-        ctx.redirect(NamedRoutes.userPath(String.valueOf(user.getId())));
         ctx.cookie("token", token);
+        ctx.redirect("/users/" + String.valueOf(user.getId()));
     }
 
-    public static void show (Context ctx) {
-        var id = ctx.pathParamAsClass("id", Long.class).get();
-        var user = UserRepository.find(id).get();
-        var savedToken = user.getToken();
-        var receivedToken = ctx.cookie("token");
-
-        if (receivedToken != null && savedToken.equals(receivedToken)) {
+    public static void show(Context ctx) {
+        Long id = ctx.pathParamAsClass("id", Long.class).get();
+        User user = UserRepository.find(id)
+                .orElseThrow(() -> new NotFoundResponse("User not found"));
+        String token = ctx.cookie("token");
+        if (user.getToken().equals(token)) {
             ctx.render("users/show.jte", Collections.singletonMap("user", user));
         } else {
             ctx.redirect(NamedRoutes.buildUserPath());
