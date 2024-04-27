@@ -12,51 +12,59 @@ import io.javalin.http.NotFoundResponse;
 import io.javalin.http.Context;
 
 import java.util.Collections;
+import java.util.Objects;
 
 
 public class UsersController {
-
+    private static final String TOKEN_NAME = "token";
     public static void build(Context ctx) throws Exception {
         ctx.render("users/build.jte");
     }
 
     // BEGIN
     public static void create(Context ctx) {
-        try {
-            var firstName = ctx.formParam("firstName");
-            var lastName = ctx.formParam("lastName");
-            var email = ctx.formParam("email");
-            var password = ctx.formParam("password");
+        var firstName = ctx.formParamAsClass("firstName", String.class)
+                .check(Objects::nonNull, "")
+                .get();
+        var lastName = ctx.formParamAsClass("lastName", String.class)
+                .check(Objects::nonNull, "")
+                .get();
+        var email = ctx.formParamAsClass("email", String.class)
+                .check(item -> UserRepository.getEntities()
+                        .stream()
+                        .filter(user -> StringUtils.equalsIgnoreCase(user.getEmail(), item))
+                        .findAny()
+                        .isEmpty(), "Пользователь уже есть.")
+                .get();
+        var password = ctx.formParamAsClass("password", String.class)
+                .check(Objects::nonNull, "")
+                .getOrThrow(ValidationException::new);
 
-            // Генерация токена и сохранение пользователя
-            var token = Security.generateToken();
-            var user = new User(firstName, lastName, email, password, token);
-            UserRepository.save(user);
-            var id = user.getId();
-            // Редирект на страницу пользователя по его id
-            ctx.redirect(NamedRoutes.userPath(id));
-            ctx.cookie("token", token);
-        } catch (ValidationException e) {
-            // Обработка ошибок валидации, если необходимо
-            ctx.status(422).render("users/build.jte");
-        }
+        var token = Security.generateToken();
+        var encryptedPassword = Security.encrypt(password);
+
+        var user = new User(firstName, lastName, email, encryptedPassword, token);
+
+        UserRepository.save(user);
+
+        ctx.cookie(TOKEN_NAME, token);
+
+        ctx.redirect(NamedRoutes.userPath(user.getId()));
     }
 
     public static void show(Context ctx) {
-        var id = ctx.pathParamAsClass("id", Long.class).get();
-        if (UserRepository.find(id).isPresent()) {
-            var user = UserRepository.find(id)
-                    .orElseThrow(() -> new NotFoundResponse("Entity with id = " + id + " not found"));
-            var token = user.getToken();
-            var userToken = ctx.cookie("token");
-            if (token.equals(userToken)) {
-                ctx.render("users/show.jte", Collections.singletonMap("user", user));
-            } else {
-                throw new NotFoundResponse("User not found");
-            }
-        } else {
-            ctx.redirect(NamedRoutes.buildUserPath());
+        var token = ctx.cookie(TOKEN_NAME);
+        var id = ctx.pathParamAsClass("id", Long.class)
+                .check(item -> UserRepository.find(item).isPresent(), "Not found.")
+                .getOrThrow(stringMap -> new NotFoundResponse());
+
+        var user = UserRepository.find(id).filter(u -> u.getToken().equals(token));
+
+        if (user.isEmpty()) {
+            throw new NotFoundResponse();
         }
+
+        ctx.render("users/show.jte", Collections.singletonMap("user", user.get()));
     }
     // END
 }
