@@ -10,6 +10,6 @@ import exercise.dto.BasePage;
 @AllArgsConstructor
 @Getter
 public class PostsPage extends BasePage {
-    List<Post> posts;
+    private List<Post> posts;
 }
 // END

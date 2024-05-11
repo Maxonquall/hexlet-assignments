@@ -11,7 +11,7 @@ import io.javalin.http.Context;
 import io.javalin.validation.ValidationException;
 import io.javalin.http.NotFoundResponse;
 
-import java.util.Collections;
+
 
 public class PostsController {
 
@@ -24,7 +24,7 @@ public class PostsController {
     public static void create(Context ctx) {
         try {
             var name = ctx.formParamAsClass("name", String.class)
-                    .check(value -> value.length() > 2, "Name is too short! (less than 2 symbols.")
+                    .check(value -> value.length() >= 2, "Название не должно быть короче двух символов")
                     .get();
             var body = ctx.formParam("body");
             var post = new Post(name, body);
@@ -32,11 +32,12 @@ public class PostsController {
             ctx.sessionAttribute("flash", "Пост был успешно создан!");
             ctx.sessionAttribute("flash-type", "success");
             ctx.redirect(NamedRoutes.postsPath());
+
         } catch (ValidationException e) {
             var name = ctx.formParam("name");
             var body = ctx.formParam("body");
             var page = new BuildPostPage(name, body, e.getErrors());
-            ctx.render("posts/build.jte", Collections.singletonMap("page", page));
+            ctx.render("posts/build.jte", model("page", page)).status(422);
         }
     }
 
@@ -45,7 +46,7 @@ public class PostsController {
         var page = new PostsPage(posts);
         page.setFlash(ctx.consumeSessionAttribute("flash"));
         page.setFlashType(ctx.consumeSessionAttribute("flash-type"));
-        ctx.render("posts/index.jte", Collections.singletonMap("page", page));
+        ctx.render("posts/index.jte", model("page", page));
     }
     // END
 
