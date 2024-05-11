@@ -13,13 +13,13 @@ public class ProductsRepository extends BaseRepository {
 
     // BEGIN
     public static void save(Product product) throws SQLException {
-        String sql = "INSERT INTO products (title, price) VALUES (?, ?)";
+        var sql = "INSERT INTO products (title, price) VALUES (?, ?)";
         try (var conn = dataSource.getConnection();
-             var stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
-            stmt.setString(1, product.getTitle());
-            stmt.setInt(2, product.getPrice());
-            stmt.executeUpdate();
-            var generatedKeys = stmt.getGeneratedKeys();
+             var preparedStatement = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+            preparedStatement.setString(1, product.getTitle());
+            preparedStatement.setInt(2, product.getPrice());
+            preparedStatement.executeUpdate();
+            var generatedKeys = preparedStatement.getGeneratedKeys();
             if (generatedKeys.next()) {
                 product.setId(generatedKeys.getLong(1));
             } else {
@@ -31,7 +31,7 @@ public class ProductsRepository extends BaseRepository {
     public static Optional<Product> find(Long id) throws SQLException {
         var sql = "SELECT * FROM products WHERE id = ?";
         try (var conn = dataSource.getConnection();
-             var stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             var stmt = conn.prepareStatement(sql)) {
             stmt.setLong(1, id);
             var resultSet = stmt.executeQuery();
             if (resultSet.next()) {
@@ -48,7 +48,7 @@ public class ProductsRepository extends BaseRepository {
     public static List<Product> getEntities() throws SQLException {
         var sql = "SELECT * FROM products";
         try (var conn = dataSource.getConnection();
-             var stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS)) {
+             var stmt = conn.prepareStatement(sql)) {
             var resultSet = stmt.executeQuery();
             var result = new ArrayList<Product>();
             while (resultSet.next()) {
