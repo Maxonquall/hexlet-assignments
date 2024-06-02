@@ -27,8 +27,9 @@ public class Application {
 
     @GetMapping("/admins")
     public List<String> getAdmins() {
+        var usersAdmins = users;
         var adminsEmails = usersInfo.getAdmins();
-        return users.stream()
+        return usersAdmins.stream()
                 .filter(u -> adminsEmails.contains(u.getEmail()))
                 .map(User::getName)
                 .sorted()

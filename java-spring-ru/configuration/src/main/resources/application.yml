@@ -3,10 +3,10 @@
 spring:
   output:
     ansi:
-      enabled:
+      enabled: always
 
 server:
-  port : 7070
+  port: 7070
 # END
 
 users:
