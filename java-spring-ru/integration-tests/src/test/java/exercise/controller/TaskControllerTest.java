@@ -98,19 +98,19 @@ class ApplicationTest {
     @Test
     public void testCreate() throws Exception {
         var data = generateTask();
-        var request = put("/tasks")
+
+        var request = post("/tasks")
                 .contentType(MediaType.APPLICATION_JSON)
                 .content(om.writeValueAsString(data));
 
         mockMvc.perform(request)
-                .andExpect(status().isOk());
+                .andExpect(status().isCreated());
 
         var task = taskRepository.findByTitle(data.getTitle()).get();
 
         assertThat(task).isNotNull();
         assertThat(task.getTitle()).isEqualTo(data.getTitle());
         assertThat(task.getDescription()).isEqualTo(data.getDescription());
-
     }
 
     @Test
@@ -119,7 +119,7 @@ class ApplicationTest {
         taskRepository.save(task);
 
         var data = new HashMap<>();
-        data.put("key", "value");
+        data.put("title", "new title");
 
         var request = put("/tasks/{id}", task.getId())
                 .contentType(MediaType.APPLICATION_JSON)
@@ -130,7 +130,7 @@ class ApplicationTest {
 
         task = taskRepository.findById(task.getId()).get();
 
-        assertThat(task.getTitle()).isEqualTo(data.get("key"));
+        assertThat(task.getTitle()).isEqualTo(data.get("title"));
     }
 
     @Test
